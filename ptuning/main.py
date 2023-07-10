@@ -121,6 +121,7 @@ def main():
         model.transformer.prefix_encoder.load_state_dict(new_prefix_state_dict)
     else:
         model = AutoModel.from_pretrained(model_args.model_name_or_path, config=config, trust_remote_code=True)
+    model.config.use_cache = False
 
     if model_args.quantization_bit is not None:
         print(f"Quantized to {model_args.quantization_bit} bit")

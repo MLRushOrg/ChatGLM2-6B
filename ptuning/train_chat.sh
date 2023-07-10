@@ -2,28 +2,27 @@ PRE_SEQ_LEN=128
 LR=1e-2
 NUM_GPUS=1
 
-torchrun --standalone --nnodes=1 --nproc-per-node=$NUM_GPUS main.py \
+torchrun --standalone --nnodes=1 --nproc-per-node=$NUM_GPUS ptuning/main.py \
     --do_train \
-    --train_file $CHAT_TRAIN_DATA \
-    --validation_file $CHAT_VAL_DATA \
-    --preprocessing_num_workers 10 \
+    --train_file ./data/record.json \
+    --validation_file ./data/record.json \
+    --preprocessing_num_workers 12 \
     --prompt_column prompt \
     --response_column response \
     --history_column history \
     --overwrite_cache \
     --model_name_or_path THUDM/chatglm2-6b \
-    --output_dir $CHECKPOINT_NAME \
+    --output_dir ./test \
     --overwrite_output_dir \
-    --max_source_length 256 \
-    --max_target_length 256 \
+    --max_source_length 4096 \
+    --max_target_length 1024 \
     --per_device_train_batch_size 1 \
     --per_device_eval_batch_size 1 \
     --gradient_accumulation_steps 16 \
     --predict_with_generate \
-    --max_steps 3000 \
+    --num_train_epochs 5 \
     --logging_steps 10 \
     --save_steps 1000 \
     --learning_rate $LR \
     --pre_seq_len $PRE_SEQ_LEN \
-    --quantization_bit 4
 
