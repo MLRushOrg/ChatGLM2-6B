@@ -143,11 +143,12 @@ for table in filter_chat_table():
                 [history.format(len(nick_names), '，'.join(nick_names), len(nick_names))
                  ,f'好的，我会先从{"，".join(nick_names)}中挑选发言人，并推断他会说什么']
             ]
-            ### 这里约束下最多20轮对话
-            start = max(0, index-20)
+            ### 这里约束下最多10轮对话
+            start = max(0, index-10)
             example['prompt'] = "\r".join([c['msgContent'] for c in session[start:index]])
             example['response'] = chat['msgContent']
-            #print(example['prompt'])
+            #print(len(example['prompt'] + example['history'][0][0] + example['history'][0][1]))
+            #print(len(example['response']))
             #print(json.dumps(example, ensure_ascii=False))
             out_f.write(json.dumps(example, ensure_ascii=False) + '\n')
 out_f.close()
