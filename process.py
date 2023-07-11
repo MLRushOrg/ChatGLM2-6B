@@ -6,6 +6,8 @@ import json
 from pathlib import Path
 import xml.etree.ElementTree as ET
 from transformers import AutoTokenizer
+from data_format import *
+
 tokenizer = AutoTokenizer.from_pretrained("THUDM/chatglm2-6b", trust_remote_code=True)
 contact_dict = {}
 contact_list = json.load(open('./data/wechat_record/contact/WCContact.json', 'r', encoding='utf-8'))
@@ -80,13 +82,6 @@ def filter_chat_table():
             if is_group_chat(chat_list, acquaintance=True):
                 yield table
 
-history = '''你是微信小助手，正在观察一个微信聊天群。
-在这个群里，有{}个朋友正在一起私下聊天，他们分别是：{}。
-这{}个人都有硕士以上的学位，属于高收入、高学历知识人群，
-他们对互联网、金融、经济、政治、教育、带娃、社会热点等都有自己的认知和理解。
-他们彼此非常熟悉，在群里交流时没有顾及，经常彼此调侃、使用脏话、说出一些滑稽粗鲁的事情。
-你将看到群聊中最近的消息记录，结合他们的说话和性格特点，请推断接下来谁会发言以及说什么。
-'''
 ## 先处理群聊的情况
 for table in filter_chat_table():
     chat_list = json.load(open(str(table), 'r', encoding='utf8'))
@@ -136,16 +131,17 @@ for table in filter_chat_table():
         if len(session) < 3:
             continue
         nick_names = get_group_nicknames(session)
-        for index in range(len(session)):
+        for index in range(1, len(session)):
             chat = session[index]
             example = {}
             example['history'] = [
-                [history.format(len(nick_names), '，'.join(nick_names), len(nick_names))
-                 ,f'好的，我会先从{"，".join(nick_names)}中挑选发言人，并推断他会说什么']
+                [HISTORY_TEMPLATE.format(len(nick_names), '，'.join(nick_names), len(nick_names))
+                ,f'好的，我会根据下面的对话记录，从{"，".join(nick_names)}中判断谁会接下来发言，并生成他会说什么']
             ]
-            ### 这里约束下最多10轮对话
-            start = max(0, index-10)
-            example['prompt'] = "\r".join([c['msgContent'] for c in session[start:index]])
+            start = max(0, index-10) ### 这里约束下最多10轮对话
+            example['prompt'] = "之前的对话记录如下：\n" \
+                + "\n".join([c['msgContent'] for c in session[start:index]])\
+                + f'\n请你从{"，".join(nick_names)}中挑选发言人，用上面的示例格式“姓名:内容”输出他会说的内容，注意只需要生成一个发言人的一句话即可，不要生成多人对话'
             example['response'] = chat['msgContent']
             #print(len(example['prompt'] + example['history'][0][0] + example['history'][0][1]))
             #print(len(example['response']))
