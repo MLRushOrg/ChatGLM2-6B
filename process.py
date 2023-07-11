@@ -16,8 +16,6 @@ for contact in contact_list:
 contact_dict['yongbao'] = {'nickname':'yongbao'}
 
 out_f = open('./data/record.json', 'w', encoding='utf8')
-## yanqiang:justin668840, Chat_021cd563017d7e3672c0c3ad477afe6c.json
-## hancy:wxid_tkuh5c6nxgri21, Chat_44352d9d82eb650973def16abb596612.json
 
 #目前沒有能力完整处理个人聊天，主要是因为不知道聊天的是谁。 
 #暂时hack的方式，先定位群聊天。 对于私聊，手工抽取对应的对话。
@@ -38,6 +36,16 @@ def is_group_chat(chat_list, acquaintance=True):#acquaintance=True 群聊仅限�
         return True
     else:
         return False
+
+def is_private_chat(chat_list):
+    for chat in chat_list:
+        if is_self(chat): ##mesDes=0是自己发的消息，mesDes=1是别人的消息
+            continue
+        ## 对于别人发的消息
+        if chat['messageType'] == 1 and ':\n' not in chat['msgContent']:
+            return True
+    return False
+
 
 def get_group_nicknames(chat_list):
     nick_names = set()
@@ -69,7 +77,7 @@ def parse_xml_text(xml):
     return title
 
 ## pick chat table ##
-def filter_chat_table():
+def get_group_chat_table():
     for i in range(0, 10):
         for table in Path(f'./data/wechat_record/msg{i}').glob('Chat_*.json'):
             if str(table).endswith('_dels.json'):
@@ -82,8 +90,106 @@ def filter_chat_table():
             if is_group_chat(chat_list, acquaintance=True):
                 yield table
 
+
+## 获取紧密联系人
+def get_private_chat_table():
+    for i in range(0,10):
+        for table in Path(f'./data/wechat_record/msg{i}').glob('Chat_*.json'):
+            if str(table).endswith('_dels.json'):
+                continue
+            chat_list = json.load(open(str(table), 'r', encoding='utf8'))
+            if chat_list is None:
+                continue
+            if len(chat_list) < 100 or len(my_text_chat(chat_list)) < 20:
+                continue
+            if is_private_chat(chat_list):
+                yield table
+
+
+## 处理私人聊天的情况
+private_tables = [
+    ('data/wechat_record/msg1/Chat_021cd563017d7e3672c0c3ad477afe6c.json', 'justin668840'),
+    ('data/wechat_record/msg1/Chat_9580a1a787cc72acf7c9d3487d7297f1.json', 'jiuri623804'),
+    ('data/wechat_record/msg2/Chat_cdb1241840102ae4129a3e529fbe70f4.json', 'anderer'),
+    ('data/wechat_record/msg2/Chat_6799e7bd4ab658c9b54afc8893cdd9f0.json', 'yhx890216'),
+    ('data/wechat_record/msg4/Chat_fcce8ed2e1c0cad0da345d6ab8e0fb49.json', 'PiouseLeo'),
+    ('data/wechat_record/msg5/Chat_1ad5365b8e20be0ed4dcec59776f53f6.json', 'hly_732842004'),
+    ('data/wechat_record/msg5/Chat_1c9504a0c4ac4481144e67a7b2b29adf.json', 'duzheng929'),
+    ('data/wechat_record/msg6/Chat_862d91aa0869fc39119c14a02e4109fb.json', 'bnnkong001'),
+    ('data/wechat_record/msg7/Chat_8600aeee5be573a9768439d2a19209f7.json', 'techtrain'),
+    ('data/wechat_record/msg9/Chat_09e36f93e17d0aa59946fbc2a5bb54dc.json', 'xiaolanglang302364'),
+    ('data/wechat_record/msg9/Chat_b3b40f803cd31a51c9e0bc368d17a9a9.json', 'zhaolionchiyumidoufu'),
+    ('data/wechat_record/msg9/Chat_1cb3566396338271a467b40b84aa79b1.json', 'wxid_yrs1ser2np3r12'),
+    ('data/wechat_record/msg5/Chat_44352d9d82eb650973def16abb596612.json', 'wxid_tkuh5c6nxgri21')
+]
+
+def chat_to_example(filtered_list):
+    for session in cut_to_session(filtered_list):
+        if len(session) < 3:
+            continue
+        nick_names = get_group_nicknames(session)
+        for index in range(1, len(session)):
+            chat = session[index]
+            example = {}
+            example['history'] = [
+                [HISTORY_TEMPLATE.format(len(nick_names), '，'.join(nick_names), len(nick_names))
+                ,f'好的，我会根据下面的对话记录，从{"，".join(nick_names)}中判断谁会接下来发言，并生成他会说什么']
+            ]
+            start = max(0, index-10) ### 这里约束下最多10轮对话
+            example['prompt'] = "之前的对话记录如下：\n" \
+                + "\n".join([c['msgContent'] for c in session[start:index]])\
+                + f'\n请你从{"，".join(nick_names)}中挑选发言人，用上面的示例格式“姓名:内容”输出他会说的内容，注意只需要生成一个发言人的一句话即可，不要生成多人对话'
+            example['response'] = chat['msgContent']
+            #print(len(example['prompt'] + example['history'][0][0] + example['history'][0][1]))
+            #print(len(example['response']))
+            #print(json.dumps(example, ensure_ascii=False))
+            yield example
+
+def process_msg_content(msgType, chat, usrname, content):
+    nickname = contact_dict[usrname]['nickname']
+    if msgType == 1: ##文字
+        chat['msgContent'] = nickname + ':\n' + content
+    if msgType == 3: ##图片
+        chat['msgContent'] = nickname + ':\n' + '上图'
+    if msgType == 34: ## 语音
+        chat['msgContent'] = nickname + ':\n' + '发语音'
+    if msgType == 42: ## 公众号
+        chat['msgContent'] = nickname + ':\n' + '推荐公众号'
+    if msgType == 43: ##视频
+        chat['msgContent'] = nickname + ':\n' + '上传视频'
+    if msgType == 47: ##表情包
+        chat['msgContent'] = nickname + ':\n' + '发表情'
+    if msgType == 48: ##发位置
+        chat['msgContent'] = nickname + ':\n' + '上传位置'
+    if msgType == 49: ##链接或者引用类型
+        chat['msgContent'] = nickname + ':\n' + parse_xml_text(content)
+    chat['nickname'] = nickname
+    chat['usrname'] = usrname
+
+# 处理私人聊天的情况
+for table, usrname in private_tables:
+    chat_list = json.load(open(str(table), 'r', encoding='utf8'))
+    filtered_list = []
+    for chat in chat_list:
+        ## 先把数据格式化一下，都转成 name:\nCONTENT
+        msgType = chat['messageType']
+        if msgType == 10000: ##接龙、撤回消息、爸发起了语音通话、语音通话已经结束之类的
+            continue
+        if msgType == 49:
+            continue
+        if is_self(chat):
+            chat['msgContent'] = 'yongbao' + ':\n' + chat['msgContent']
+        else:
+            chat['msgContent'] = usrname + ':\n' + chat['msgContent']
+        ##已经标准化完成了
+        name, content = chat['msgContent'].strip().split(':\n', 1)
+        process_msg_content(msgType, chat, name, content)
+        filtered_list.append(chat)
+    for example in chat_to_example(filtered_list):
+        out_f.write(json.dumps(example, ensure_ascii=False) + '\n')
+
 ## 先处理群聊的情况
-for table in filter_chat_table():
+for table in get_group_chat_table():
     chat_list = json.load(open(str(table), 'r', encoding='utf8'))
     filtered_list = []
     for chat in chat_list:
@@ -105,46 +211,11 @@ for table in filter_chat_table():
             #print('微信版本不支持，过滤掉')
             continue
         usrname, content = sp
-        nickname = contact_dict[usrname]['nickname']
-        if msgType == 1: ##文字
-            chat['msgContent'] = nickname + ':\n' + content
-        if msgType == 3: ##图片
-            chat['msgContent'] = nickname + ':\n' + '上图'
-        if msgType == 34: ## 语音
-            chat['msgContent'] = nickname + ':\n' + '发语音'
-        if msgType == 42: ## 公众号
-            chat['msgContent'] = nickname + ':\n' + '推荐公众号'
-        if msgType == 43: ##视频
-            chat['msgContent'] = nickname + ':\n' + '上传视频'
-        if msgType == 47: ##表情包
-            chat['msgContent'] = nickname + ':\n' + '发表情'
-        if msgType == 48: ##发位置
-            chat['msgContent'] = nickname + ':\n' + '上传位置'
-        if msgType == 49: ##链接或者引用类型
-            chat['msgContent'] = nickname + ':\n' + parse_xml_text(sp[1])
-        chat['nickname'] = nickname
-        chat['usrname'] = usrname
+        process_msg_content(msgType, chat, usrname, content)
         filtered_list.append(chat)
     # 格式上已经被处理好了
     ## 切分成session
-    for session in cut_to_session(filtered_list):
-        if len(session) < 3:
-            continue
-        nick_names = get_group_nicknames(session)
-        for index in range(1, len(session)):
-            chat = session[index]
-            example = {}
-            example['history'] = [
-                [HISTORY_TEMPLATE.format(len(nick_names), '，'.join(nick_names), len(nick_names))
-                ,f'好的，我会根据下面的对话记录，从{"，".join(nick_names)}中判断谁会接下来发言，并生成他会说什么']
-            ]
-            start = max(0, index-10) ### 这里约束下最多10轮对话
-            example['prompt'] = "之前的对话记录如下：\n" \
-                + "\n".join([c['msgContent'] for c in session[start:index]])\
-                + f'\n请你从{"，".join(nick_names)}中挑选发言人，用上面的示例格式“姓名:内容”输出他会说的内容，注意只需要生成一个发言人的一句话即可，不要生成多人对话'
-            example['response'] = chat['msgContent']
-            #print(len(example['prompt'] + example['history'][0][0] + example['history'][0][1]))
-            #print(len(example['response']))
-            #print(json.dumps(example, ensure_ascii=False))
-            out_f.write(json.dumps(example, ensure_ascii=False) + '\n')
+    for example in chat_to_example(filtered_list):
+        out_f.write(json.dumps(example, ensure_ascii=False) + '\n')
+
 out_f.close()
