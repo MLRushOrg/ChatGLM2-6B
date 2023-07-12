@@ -349,7 +349,7 @@ def main():
         model.gradient_checkpointing_enable()
         model.enable_input_require_grads()
         train_result = trainer.train(resume_from_checkpoint=checkpoint)
-        # trainer.save_model()  # Saves the tokenizer too for easy upload
+        trainer.save_model()  # Saves the tokenizer too for easy upload
 
         metrics = train_result.metrics
         max_train_samples = (

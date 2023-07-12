@@ -1,13 +1,12 @@
 
-LR=1e-4
+LR=5e-4
 
 MASTER_PORT=$(shuf -n 1 -i 10000-65535)
 
-deepspeed --num_gpus=4 --master_port $MASTER_PORT main.py \
-    --deepspeed deepspeed.json \
+deepspeed --num_gpus=1 --master_port $MASTER_PORT ptuning/main.py \
+    --deepspeed ptuning/deepspeed.json \
     --do_train \
     --train_file data/record.json \
-    --test_file data/record.json \
     --prompt_column prompt \
     --response_column response \
     --history_column history \

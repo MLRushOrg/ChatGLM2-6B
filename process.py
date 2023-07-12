@@ -16,7 +16,9 @@ for contact in contact_list:
 contact_dict['yongbao'] = {'nickname':'yongbao'}
 
 out_f = open('./data/record.json', 'w', encoding='utf8')
-
+max_round = 10
+COMMA = "："
+OLD_COMMA = ":\n"
 #目前沒有能力完整处理个人聊天，主要是因为不知道聊天的是谁。 
 #暂时hack的方式，先定位群聊天。 对于私聊，手工抽取对应的对话。
 def is_group_chat(chat_list, acquaintance=True):#acquaintance=True 群聊仅限完全群成员完全是好友的群，否则也干掉。
@@ -24,14 +26,15 @@ def is_group_chat(chat_list, acquaintance=True):#acquaintance=True 群聊仅限�
     for chat in chat_list:
         if is_self(chat): ##mesDes=0是自己发的消息，mesDes=1是别人的消息
             continue
-        if ':\n' not in chat['msgContent']:
+        if OLD_COMMA not in chat['msgContent']:
             continue
-        name = chat['msgContent'].split(':\n')[0]
+        name = chat['msgContent'].split(OLD_COMMA)[0]
         if name not in contact_dict and acquaintance:
             return False
         if name in contact_dict:
             usr_names.add(name)
     ## 自己在群聊里面是没有名字的
+    #if len(usr_names) == 2 and 'justin668840' in usr_names and 'wxid_tkuh5c6nxgri21' in usr_names:
     if len(usr_names) >= 2:
         return True
     else:
@@ -42,7 +45,7 @@ def is_private_chat(chat_list):
         if is_self(chat): ##mesDes=0是自己发的消息，mesDes=1是别人的消息
             continue
         ## 对于别人发的消息
-        if chat['messageType'] == 1 and ':\n' not in chat['msgContent']:
+        if chat['messageType'] == 1 and OLD_COMMA not in chat['msgContent']:
             return True
     return False
 
@@ -69,11 +72,11 @@ def cut_to_session(chat_list, hour=3):
     return session_list
 
 def parse_xml_text(xml):
-    xml = sp[1].strip()
     root = ET.fromstring(xml.strip())
     title = root.find('.//title').text
     if title is None:
-        return 'title'
+        print('parse_xml_text get title failed')
+        return ' '
     return title
 
 ## pick chat table ##
@@ -100,7 +103,7 @@ def get_private_chat_table():
             chat_list = json.load(open(str(table), 'r', encoding='utf8'))
             if chat_list is None:
                 continue
-            if len(chat_list) < 100 or len(my_text_chat(chat_list)) < 20:
+            if len(chat_list) < 60 or len(my_text_chat(chat_list)) < 20:
                 continue
             if is_private_chat(chat_list):
                 yield table
@@ -120,7 +123,7 @@ private_tables = [
     ('data/wechat_record/msg9/Chat_09e36f93e17d0aa59946fbc2a5bb54dc.json', 'xiaolanglang302364'),
     ('data/wechat_record/msg9/Chat_b3b40f803cd31a51c9e0bc368d17a9a9.json', 'zhaolionchiyumidoufu'),
     ('data/wechat_record/msg9/Chat_1cb3566396338271a467b40b84aa79b1.json', 'wxid_yrs1ser2np3r12'),
-    ('data/wechat_record/msg5/Chat_44352d9d82eb650973def16abb596612.json', 'wxid_tkuh5c6nxgri21')
+    ('data/wechat_record/msg5/Chat_44352d9d82eb650973def16abb596612.json', 'wxid_tkuh5c6nxgri21')  ## hancy
 ]
 
 def chat_to_example(filtered_list):
@@ -133,12 +136,11 @@ def chat_to_example(filtered_list):
             example = {}
             example['history'] = [
                 [HISTORY_TEMPLATE.format(len(nick_names), '，'.join(nick_names), len(nick_names))
-                ,f'好的，我会根据下面的对话记录，从{"，".join(nick_names)}中判断谁会接下来发言，并生成他会说什么']
+                ,f'好的，我会根据下面的对话记录，从{"，".join(nick_names)}中生成接下来的聊天发言，用 “姓名{COMMA}聊天内容” 格式输出']
             ]
-            start = max(0, index-10) ### 这里约束下最多10轮对话
-            example['prompt'] = "之前的对话记录如下：\n" \
-                + "\n".join([c['msgContent'] for c in session[start:index]])\
-                + f'\n请你从{"，".join(nick_names)}中挑选发言人，用上面的示例格式“姓名:内容”输出他会说的内容，注意只需要生成一个发言人的一句话即可，不要生成多人对话'
+            start = max(0, index-max_round) ### 这里约束下最多10轮对话
+            example['prompt'] = "对话记录如下：\n" \
+                + "\n".join([c['msgContent'] for c in session[start:index]])
             example['response'] = chat['msgContent']
             #print(len(example['prompt'] + example['history'][0][0] + example['history'][0][1]))
             #print(len(example['response']))
@@ -148,21 +150,21 @@ def chat_to_example(filtered_list):
 def process_msg_content(msgType, chat, usrname, content):
     nickname = contact_dict[usrname]['nickname']
     if msgType == 1: ##文字
-        chat['msgContent'] = nickname + ':\n' + content
+        chat['msgContent'] = nickname + COMMA + content
     if msgType == 3: ##图片
-        chat['msgContent'] = nickname + ':\n' + '上图'
+        chat['msgContent'] = nickname + COMMA + '分享图片'
     if msgType == 34: ## 语音
-        chat['msgContent'] = nickname + ':\n' + '发语音'
+        chat['msgContent'] = nickname + COMMA + '发语音'
     if msgType == 42: ## 公众号
-        chat['msgContent'] = nickname + ':\n' + '推荐公众号'
+        chat['msgContent'] = nickname + COMMA + '推荐公众号'
     if msgType == 43: ##视频
-        chat['msgContent'] = nickname + ':\n' + '上传视频'
+        chat['msgContent'] = nickname + COMMA + '分享视频'
     if msgType == 47: ##表情包
-        chat['msgContent'] = nickname + ':\n' + '发表情'
+        chat['msgContent'] = nickname + COMMA + '发表情'
     if msgType == 48: ##发位置
-        chat['msgContent'] = nickname + ':\n' + '上传位置'
+        chat['msgContent'] = nickname + COMMA + '分享位置'
     if msgType == 49: ##链接或者引用类型
-        chat['msgContent'] = nickname + ':\n' + parse_xml_text(content)
+        chat['msgContent'] = nickname + COMMA + '分享链接' + parse_xml_text(content)
     chat['nickname'] = nickname
     chat['usrname'] = usrname
 
@@ -178,11 +180,11 @@ for table, usrname in private_tables:
         if msgType == 49:
             continue
         if is_self(chat):
-            chat['msgContent'] = 'yongbao' + ':\n' + chat['msgContent']
+            chat['msgContent'] = 'yongbao' + COMMA + chat['msgContent']
         else:
-            chat['msgContent'] = usrname + ':\n' + chat['msgContent']
+            chat['msgContent'] = usrname + COMMA + chat['msgContent']
         ##已经标准化完成了
-        name, content = chat['msgContent'].strip().split(':\n', 1)
+        name, content = chat['msgContent'].strip().split(COMMA, 1)
         process_msg_content(msgType, chat, name, content)
         filtered_list.append(chat)
     for example in chat_to_example(filtered_list):
@@ -198,19 +200,25 @@ for table in get_group_chat_table():
         if msgType == 10000: ##接龙、撤回消息、爸发起了语音通话、语音通话已经结束之类的
             continue
         if is_self(chat):
-            chat['msgContent'] = 'yongbao' + ':\n' + chat['msgContent']
+            chat['msgContent'] = 'yongbao' + COMMA + chat['msgContent']
         else:
-            sp = chat['msgContent'].strip().split(':\n', 1)
-            if msgType == 43 and len(sp) < 2:
-                usrname = re.search(r'fromusername="(.*?)"', chat['msgContent'])
-                usrname = usrname.group(1)
-                chat['msgContent'] = usrname + ':\n' + chat['msgContent']
+            sp = chat['msgContent'].strip().split(OLD_COMMA, 1)
+            if len(sp) == 1:
+                if msgType == 43:
+                    usrname = re.search(r'fromusername="(.*?)"', chat['msgContent'])
+                    usrname = usrname.group(1)
+                    chat['msgContent'] = usrname + COMMA + chat['msgContent']
+                elif msgType == 49:
+                    print('error:do not get name, and msgType is 49') #当前微信版本不支持展示该内容，请升级至最新版本
+                    continue
+                else:
+                    print('error unknown:' + chat['msgContent'])
+            else: ## len(sp) == 2
+                if sp[0] not in contact_dict:
+                    continue
+                chat['msgContent'] = sp[0] + COMMA + sp[1]
         ##已经标准化完成了
-        sp = chat['msgContent'].strip().split(':\n', 1)
-        if len(sp) != 2 and msgType == 49:
-            #print('微信版本不支持，过滤掉')
-            continue
-        usrname, content = sp
+        usrname, content = chat['msgContent'].strip().split(COMMA, 1)
         process_msg_content(msgType, chat, usrname, content)
         filtered_list.append(chat)
     # 格式上已经被处理好了
