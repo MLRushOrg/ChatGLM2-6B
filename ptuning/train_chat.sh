@@ -1,5 +1,5 @@
 PRE_SEQ_LEN=128
-LR=2e-4
+LR=5e-4
 NUM_GPUS=1
 
 torchrun --standalone --nnodes=1 --nproc-per-node=$NUM_GPUS ptuning/main.py \
@@ -17,11 +17,11 @@ torchrun --standalone --nnodes=1 --nproc-per-node=$NUM_GPUS ptuning/main.py \
     --max_target_length 64 \
     --per_device_train_batch_size 4 \
     --per_device_eval_batch_size 1 \
-    --gradient_accumulation_steps 4 \
+    --gradient_accumulation_steps 8 \
     --predict_with_generate \
-    --num_train_epochs 1 \
+    --num_train_epochs 2 \
     --logging_steps 20 \
-    --save_steps 1000 \
+    --save_steps 500 \
     --learning_rate $LR \
     --pre_seq_len $PRE_SEQ_LEN \
     --report_to tensorboard
