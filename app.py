@@ -15,10 +15,10 @@ print(f"Is CUDA available: {torch.cuda.is_available()}\n")
 print(f"CUDA device: {torch.cuda.get_device_name(torch.cuda.current_device())}\n")
 
 
-print("Loading tokenizer....\n")
-tokenizer = AutoTokenizer.from_pretrained("THUDM/chatglm2-6b", trust_remote_code=True)
-print("Loading model....\n")
-model = AutoModel.from_pretrained("THUDM/chatglm2-6b", trust_remote_code=True).half().cuda()
+# print("Loading tokenizer....\n")
+# tokenizer = AutoTokenizer.from_pretrained("THUDM/chatglm2-6b", trust_remote_code=True)
+# print("Loading model....\n")
+# model = AutoModel.from_pretrained("THUDM/chatglm2-6b", trust_remote_code=True).half().cuda()
 
 
 pre_seq_len = 128
