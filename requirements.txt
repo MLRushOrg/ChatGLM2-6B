@@ -12,3 +12,4 @@ jieba
 nltk
 rouge_chinese
 deepspeed
+datasets

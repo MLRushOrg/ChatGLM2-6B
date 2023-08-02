@@ -187,9 +187,15 @@ for table, usrname in private_tables:
         name, content = chat['msgContent'].strip().split(COMMA, 1)
         process_msg_content(msgType, chat, name, content)
         filtered_list.append(chat)
-    for example in chat_to_example(filtered_list):
-        out_f.write(json.dumps(example, ensure_ascii=False) + '\n')
-
+    ## output to prompt
+    print('下面是私人微信对话，"："前面是用户名，"："后面是对话内容')
+    for chat in filtered_list:
+        print(chat['msgContent'])
+    print('\n')
+    ## output to train in glm
+    # for example in chat_to_example(filtered_list):
+    #     out_f.write(json.dumps(example, ensure_ascii=False) + '\n')
+sys.exit(0)
 ## 先处理群聊的情况
 for table in get_group_chat_table():
     chat_list = json.load(open(str(table), 'r', encoding='utf8'))

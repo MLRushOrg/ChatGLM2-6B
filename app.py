@@ -15,24 +15,24 @@ print(f"Is CUDA available: {torch.cuda.is_available()}\n")
 print(f"CUDA device: {torch.cuda.get_device_name(torch.cuda.current_device())}\n")
 
 
-# print("Loading tokenizer....\n")
-# tokenizer = AutoTokenizer.from_pretrained("THUDM/chatglm2-6b", trust_remote_code=True)
-# print("Loading model....\n")
-# model = AutoModel.from_pretrained("THUDM/chatglm2-6b", trust_remote_code=True).half().cuda()
-
-
-pre_seq_len = 128
-config = AutoConfig.from_pretrained("THUDM/chatglm2-6b", trust_remote_code=True, pre_seq_len=pre_seq_len)
-model = AutoModel.from_pretrained("THUDM/chatglm2-6b", config=config, trust_remote_code=True, device_map = 'auto')
-print(model.hf_device_map)
-print('==================================================================================')
+print("Loading tokenizer....\n")
 tokenizer = AutoTokenizer.from_pretrained("THUDM/chatglm2-6b", trust_remote_code=True)
-prefix_state_dict = torch.load("/data/ChatGLM2-6B/test/pytorch_model.bin")
-new_prefix_state_dict = {}
-for k, v in prefix_state_dict.items():
-    if k.startswith("transformer.prefix_encoder."):
-        new_prefix_state_dict[k[len("transformer.prefix_encoder."):]] = v
-model.transformer.prefix_encoder.load_state_dict(new_prefix_state_dict)
+print("Loading model....\n")
+model = AutoModel.from_pretrained("THUDM/chatglm2-6b", trust_remote_code=True).half().cuda()
+
+
+# pre_seq_len = 128
+# config = AutoConfig.from_pretrained("THUDM/chatglm2-6b", trust_remote_code=True, pre_seq_len=pre_seq_len)
+# model = AutoModel.from_pretrained("THUDM/chatglm2-6b", config=config, trust_remote_code=True, device_map = 'auto')
+# print(model.hf_device_map)
+# print('==================================================================================')
+# tokenizer = AutoTokenizer.from_pretrained("THUDM/chatglm2-6b", trust_remote_code=True)
+# prefix_state_dict = torch.load("/data/ChatGLM2-6B/test/pytorch_model.bin")
+# new_prefix_state_dict = {}
+# for k, v in prefix_state_dict.items():
+#     if k.startswith("transformer.prefix_encoder."):
+#         new_prefix_state_dict[k[len("transformer.prefix_encoder."):]] = v
+# model.transformer.prefix_encoder.load_state_dict(new_prefix_state_dict)
 
 
 model.eval()
